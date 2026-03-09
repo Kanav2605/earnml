@@ -1,0 +1,128 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────
+# EarnML Full Stack
+#   api       → FastAPI ML backend (port 8000)
+#   frontend  → React + Nginx (port 3000)
+#   mlflow    → Experiment tracking UI (port 5000)
+#   postgres  → Prediction + model registry storage (port 5432)
+#   redis     → Result cache (port 6379)
+# ─────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── FastAPI ML API ─────────────────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: earnml-api
+    ports:
+      - "8000:8000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - DATABASE_URL=postgresql://earnml:earnml@postgres:5432/earnml
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+    volumes:
+      - model_storage:/app/ml/models/saved
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - earnml-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── React Frontend (Nginx) ─────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.frontend
+    container_name: earnml-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - earnml-net
+
+  # ── MLflow Experiment Tracking ─────────────────────────────────
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.9.2
+    container_name: earnml-mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=postgresql://earnml:earnml@postgres:5432/mlflow
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlruns
+    volumes:
+      - mlruns:/mlruns
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri postgresql://earnml:earnml@postgres:5432/mlflow
+        --default-artifact-root /mlruns
+    restart: unless-stopped
+    networks:
+      - earnml-net
+
+  # ── PostgreSQL ─────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: earnml-postgres
+    environment:
+      POSTGRES_USER: earnml
+      POSTGRES_PASSWORD: earnml
+      POSTGRES_DB: earnml
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U earnml"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - earnml-net
+
+  # ── Redis Cache ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: earnml-redis
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - earnml-net
+
+volumes:
+  postgres_data:
+  model_storage:
+  mlruns:
+
+networks:
+  earnml-net:
+    driver: bridge
