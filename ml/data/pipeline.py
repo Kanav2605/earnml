@@ -19,7 +19,12 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import yfinance as yf
-import requests, feedparser
+import requests
+
+try:
+    import feedparser
+except ImportError:
+    feedparser = None
 from cachetools import TTLCache, cached
 warnings.filterwarnings("ignore")
 
