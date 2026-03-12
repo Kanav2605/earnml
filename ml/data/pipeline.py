@@ -201,12 +201,14 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     Given a price DataFrame, compute 40+ technical features.
     All operations are vectorised with pandas/numpy.
     """
+    if df is None or df.empty:
+        return pd.DataFrame()
     d = df.copy()
     c = d["Close"]; h = d["High"]; lo = d["Low"]; v = d["Volume"]
 
     # ── Returns ──────────────────────────────────────────────────────────────
     for n in [1, 2, 3, 5, 10, 20, 60]:
-        d[f"ret_{n}d"] = c.pct_change(n)
+        d[f"ret_{n}d"] = c.pct_change(n, fill_method=None)
 
     # ── Log returns ──────────────────────────────────────────────────────────
     d["log_ret_1d"] = np.log(c / c.shift(1))
@@ -275,7 +277,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     d["obv_trend"]  = (obv > d["obv_sma20"]).astype(int)
 
     # ── Volatility regimes ────────────────────────────────────────────────────
-    for w in [10, 20, 60]:
+    for w in [10, 20, 30, 60]:
         d[f"vol_{w}d"] = d["log_ret_1d"].rolling(w).std() * np.sqrt(252)
     d["vol_ratio_10_60"] = d["vol_10d"] / (d["vol_60d"] + 1e-9)  # vol term structure
 
@@ -290,7 +292,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     d["overnight_gap"]   = (d["Open"] / c.shift(1) - 1) if "Open" in d.columns else 0
     d["intraday_range"]  = (h - lo) / (c + 1e-9)
 
-    d.dropna(inplace=True)
+    d = d.dropna(thresh=int(len(d.columns) * 0.7))
     return d
 
 
