@@ -1,6 +1,6 @@
 # 🧠 EarnML v3 — Production-Grade ML Earnings Intelligence
 
-> A JPMorgan-ready ML engineering portfolio project demonstrating the full production lifecycle.
+> A ML engineering portfolio project demonstrating the full production lifecycle.
 
 [![CI/CD](https://github.com/YOUR_USERNAME/earnml/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/earnml/actions)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue)](https://python.org)
@@ -10,7 +10,7 @@
 
 ## 🎯 What This Demonstrates
 
-| JPMorgan Hiring Criteria | Where Demonstrated |
+| Hiring Criteria | Where Demonstrated |
 |---|---|
 | **ML Models** | Stacked ensemble (XGB+LGB+CAT), LSTM, FinBERT, GARCH |
 | **Feature Engineering** | 40+ technical + macro features, regime-aware |
@@ -194,18 +194,6 @@ python llm_layer/analyst.py AAPL
 2. Add env var: `VITE_API_URL=https://your-render-url.onrender.com`
 3. Add `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` to GitHub secrets
 
----
-
-## 📈 Interview Talking Points
-
-**"Tell me about a production ML system you've built."**
-> "EarnML uses a three-level stacked ensemble — XGBoost, LightGBM, and CatBoost at level 0, with a Logistic Regression meta-learner at level 1. Out-of-fold predictions with TimeSeriesSplit prevent look-ahead bias. The system integrates MLflow for experiment tracking, PSI-based drift detection, and an LLM layer that generates analyst commentary. It's containerised with Docker and has a full CI/CD pipeline on GitHub Actions."
-
-**"How do you handle model degradation in production?"**
-> "I implemented PSI-based drift detection. After training, I save the reference feature distribution. On each inference, I compute the PSI between the reference and current distributions — above 0.2 triggers a retraining recommendation flag visible in the API response and dashboard."
-
-**"How do you evaluate a financial ML model?"**
-> "Accuracy alone is misleading in finance. I use TimeSeriesSplit cross-val to prevent leakage, ROC-AUC for calibration, directional accuracy for practical utility, and backtesting Sharpe ratio to measure the actual economic value of the signal vs a buy-and-hold benchmark."
 
 ---
 
